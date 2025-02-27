@@ -45,3 +45,9 @@ export async function scheduleWeeklySurveyAsync() {
     },
   });
 }
+// Add a default export
+export default {
+  requestNotificationPermissionsAsync,
+  scheduleDailySurveyAsync,
+  scheduleWeeklySurveyAsync,
+};

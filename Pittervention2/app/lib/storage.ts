@@ -72,3 +72,11 @@ export async function emailCSVAttachmentAsync() {
     attachments: [fileUri],
   });
 }
+
+// Add a default export
+export default {
+  saveSurveyDataAsync,
+  loadEntriesAsync,
+  clearDataAsync,
+  emailCSVAttachmentAsync,
+};

@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { clearDataAsync, emailCSVAttachmentAsync } from './lib/storage';
+import { clearDataAsync, emailCSVAttachmentAsync, exportSurveyDataAsync } from './lib/storage';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function HomeScreen() {
 
   const handleEmail = async () => {
     try {
-      await emailCSVAttachmentAsync();
+      await exportSurveyDataAsync();
       Alert.alert('CSV emailed successfully!');
     } catch (error) {
       Alert.alert('Error exporting CSV', String(error));

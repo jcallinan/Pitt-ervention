@@ -1,10 +1,12 @@
 // app/index.tsx
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { clearDataAsync, emailCSVAttachmentAsync } from './lib/storage';
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   const handleClear = async () => {
     await clearDataAsync();
     Alert.alert('Database cleared successfully.');
@@ -23,15 +25,13 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Main Menu</Text>
 
-      {/* Navigates to view-entries.tsx */}
-      <Link href="/view-entries" style={styles.button}>
+      <Pressable style={styles.button} onPress={() => router.push('/view-entries')}>
         <Text style={styles.buttonText}>View Entries</Text>
-      </Link>
+      </Pressable>
 
-      {/* Navigates to survey.tsx */}
-      <Link href="/survey" style={styles.button}>
+      <Pressable style={styles.button} onPress={() => router.push('/survey')}>
         <Text style={styles.buttonText}>Add New Survey Entry</Text>
-      </Link>
+      </Pressable>
 
       <Pressable style={styles.button} onPress={handleClear}>
         <Text style={styles.buttonText}>Clear All Entries</Text>

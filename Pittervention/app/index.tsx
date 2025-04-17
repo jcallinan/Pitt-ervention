@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { clearDataAsync, emailCSVAttachmentAsync, exportSurveyDataAsync } from './lib/storage';
+import { clearDataAsync, exportSurveyDataAsync } from './lib/storage';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,6 +24,14 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Main Menu</Text>
+
+      <Pressable style={styles.button} onPress={() => router.push('/register')}>
+        <Text style={styles.buttonText}>Register</Text>
+      </Pressable>
+
+      <Pressable style={styles.button} onPress={() => router.push('/login')}>
+        <Text style={styles.buttonText}>Login</Text>
+      </Pressable>
 
       <Pressable style={styles.button} onPress={() => router.push('/view-entries')}>
         <Text style={styles.buttonText}>View Entries</Text>

@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Android Emulator",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoLogo",
+        "-NoProfile",
+        "-Command",
+        "$env:ANDROID_SDK_ROOT = $env:ANDROID_SDK_ROOT -as [string] ?? \"$env:LOCALAPPDATA\\Android\\Sdk\"; " ,
+        "$emul = Join-Path $env:ANDROID_SDK_ROOT 'emulator\\emulator.exe'; ",
+        "$adb  = Join-Path $env:ANDROID_SDK_ROOT 'platform-tools\\adb.exe'; ",
+        "$avd  = 'Pixel_7_API_34'; ",
+        "$devs = & $adb devices; ",
+        "if ($devs -notmatch 'emulator-\\d+\\s+device') { Start-Process -FilePath $emul -ArgumentList ('-avd ' + $avd + ' -netdelay none -netspeed full'); & $adb wait-for-device }"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Expo Start (Android)",
+      "type": "shell",
+      "command": "npx",
+      "args": ["expo", "start", "--android"],
+      "dependsOn": ["Start Android Emulator"],
+      "problemMatcher": []
+    }
+  ]
+}

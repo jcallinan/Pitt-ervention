@@ -33,7 +33,7 @@ const LINKS = [
   }
 ];
 
-const REMINDER_HOUR = 19; // 7 PM
+const REMINDER_HOUR = 9; // 9 AM
 const REMINDER_MINUTE = 0;
 
 const STORAGE_KEYS = {

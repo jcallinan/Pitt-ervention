@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { clearDataAsync, exportSurveyDataAsync } from './lib/storage';
-
 export default function HomeScreen() {
   const router = useRouter();
 

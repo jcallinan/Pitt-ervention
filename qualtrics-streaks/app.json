@@ -1,52 +1,55 @@
-﻿{
-    "expo":  {
-                 "name":  "Qualtrics Streaks",
-                 "slug":  "qualtrics-streaks",
-                 "scheme":  "qualtricsstreaks",
-                 "version":  "1.0.0",
-                 "orientation":  "portrait",
-                 "icon":  "./assets/logo.png",
-                 "splash":  {
-                                "image":  "./assets/logo.png",
-                                "resizeMode":  "contain",
-                                "backgroundColor":  "#ffffff"
-                            },
-                 "ios":  {
-                             "supportsTablet":  true,
-                             "bundleIdentifier":  "com.jcallinan.qualtricsstreaks",
-                             "infoPlist":  {
-                                               "NSUserTrackingUsageDescription":  "We use notifications to remind you to complete your survey."
-                                           }
-                         },
-                 "android":  {
-                                 "bundleIdentifier":  "com.jcallinan.qualtricsstreaks",
-                                 "adaptiveIcon":  {
-                                                      "foregroundImage":  "./assets/adaptive-icon.png",
-                                                      "backgroundColor":  "#ffffff"
-                                                  },
-                                 "permissions":  [
-                                                     "RECEIVE_BOOT_COMPLETED",
-                                                     "VIBRATE"
-                                                 ]
-                             },
-                 "plugins":  [
-                                 [
-                                     "expo-notifications",
-                                     {
-                                         "icon":  "./assets/notification-icon.png",
-                                         "color":  "#0ea5e9"
-                                     }
-                                 ],
-                                 "expo-font"
-                             ],
-                 "updates":  {
-                                 "enabled":  true
-                             },
-                 "extra":  {
-                               "eas":  {
-                                           "projectId":  "3e23cec8-2618-4b49-9ab5-256f3649b23a"
-                                       }
-                           },
-                 "owner":  "jcallinan"
-             }
+{
+  "expo": {
+    "name": "Qualtrics Streaks",
+    "slug": "qualtrics-streaks",
+    "scheme": "qualtricsstreaks",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jcallinan.qualtricsstreaks",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "We use notifications to remind you to complete your survey."
+      },
+      "buildNumber": "2"
+    },
+    "android": {
+      "bundleIdentifier": "com.jcallinan.qualtricsstreaks",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
+      "versionCode": 2,
+      "package": "com.jcallinan.qualtricsstreaks"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0ea5e9"
+        }
+      ],
+      "expo-font"
+    ],
+    "updates": {
+      "enabled": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3e23cec8-2618-4b49-9ab5-256f3649b23a"
+      }
+    },
+    "owner": "jcallinan"
+  }
 }

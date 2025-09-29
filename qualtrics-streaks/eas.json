@@ -1,10 +1,22 @@
 {
   "cli": { "version": ">= 11.0.0" },
   "build": {
-    "android-apk": { "android": { "buildType": "apk" }, "developmentClient": false },
-    "android-aab": { "android": { "buildType": "app-bundle" }, "developmentClient": false },
-    "ios-adhoc":   { "ios":     { "distribution": "adhoc",     "buildConfiguration": "Release" }, "developmentClient": false },
-    "ios-testflight": { "ios":  { "distribution": "app-store", "buildConfiguration": "Release" }, "developmentClient": false }
+    "android-apk": {
+      "android": { "buildType": "apk" },
+      "developmentClient": false
+    },
+    "android-aab": {
+      "android": { "buildType": "app-bundle" },
+      "developmentClient": false
+    },
+    "ios-adhoc": {
+      "ios": { "distribution": "internal", "buildConfiguration": "Release" },
+      "developmentClient": false
+    },
+    "ios-testflight": {
+      "ios": { "distribution": "store", "buildConfiguration": "Release" },
+      "developmentClient": false
+    }
   },
   "submit": {}
 }

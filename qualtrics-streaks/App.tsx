@@ -14,7 +14,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Confetti } from "expo-confetti";
+import ConfettiCannon from "react-native-confetti-cannon"; // ⬅️ pure-JS confetti
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -127,7 +127,7 @@ export default function App() {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "Daily check-in",
-        body: "Complete your Daily Survey or Journal Entry to keep your streak alive."
+          body: "Complete your Daily Survey or Journal Entry to keep your streak alive."
         },
         trigger: { hour: REMINDER_HOUR, minute: REMINDER_MINUTE, repeats: true }
       });
@@ -147,7 +147,7 @@ export default function App() {
 
   const milestoneHit = useMemo(() => MILESTONES.includes(state.streak), [state.streak]);
   useEffect(() => {
-    if (!loading && milestoneHit) setConfettiTrigger(Date.now());
+    if (!loading && milestoneHit) setConfettiTrigger(Date.now()); // update key to re-mount cannon
   }, [milestoneHit, loading]);
 
   // Shared handlers
@@ -278,8 +278,19 @@ export default function App() {
         ))}
       </View>
 
-      {/* Confetti for milestones & demo */}
-      {confettiTrigger > 0 && <Confetti count={120} fadeOut duration={3000} />}
+      {/* Confetti for milestones & demo (pure JS) */}
+      {confettiTrigger > 0 && (
+        <ConfettiCannon
+          key={confettiTrigger}     // remount to fire each time
+          autoStart
+          count={120}
+          fadeOut
+          origin={{ x: 0, y: 0 }}
+          fallSpeed={2500}
+          explosionSpeed={400}
+          onAnimationEnd={() => { /* no-op; component unmounts on next trigger */ }}
+        />
+      )}
     </SafeAreaView>
   );
 
@@ -294,7 +305,7 @@ export default function App() {
         <Text style={styles.muted}>Loading…</Text>
       </SafeAreaView>
     );
-  }
+    }
 
   return (
     <NavigationContainer theme={navTheme}>

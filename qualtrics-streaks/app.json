@@ -15,7 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jcallinan.qualtricsstreaks",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "We use notifications to remind you to complete your survey."
+        "NSUserTrackingUsageDescription": "We use notifications to remind you to complete your survey.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "buildNumber": "2"
     },

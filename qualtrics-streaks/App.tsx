@@ -22,37 +22,64 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 // ---- Config ----
 const LINKS = [
   {
-    label: "Daily Survey – Qualtrics",
-    url: "https://pitt.co1.qualtrics.com/jfe/form/SV_aeZQnmhtxCA419Q",
+    label: "Daily Survey (Mon–Sat • 9 PM)",
+    url: "https://pitt.co1.qualtrics.com/jfe/form/SV_6Fh0FQ2anuAEygu",
     key: "daily"
   },
   {
-    label: "Journal Entry – Qualtrics",
-    url: "https://pitt.co1.qualtrics.com/jfe/form/SV_cFSR1cwZgP4scse",
+    label: "Sunday Survey (9 PM)",
+    url: "https://pitt.co1.qualtrics.com/jfe/form/SV_4JD6znTZTZiBWx8",
+    key: "sunday"
+  },
+  {
+    label: "Weekly Journal (Sunday • 9 AM)",
+    url: "https://pitt.co1.qualtrics.com/jfe/form/SV_cAMvPV4molbh9Ay",
     key: "journal"
   }
 ];
 
-const REMINDER_HOUR = 9; // 9 AM
-const REMINDER_MINUTE = 0;
+const REMINDERS = [
+  {
+    key: "daily",
+    title: "Daily survey reminder",
+    body: "It's 9 PM — complete today's Daily Survey to stay on track!",
+    hour: 21,
+    minute: 0,
+    weekdays: [2, 3, 4, 5, 6, 7] // Monday–Saturday
+  },
+  {
+    key: "sunday",
+    title: "Sunday survey reminder",
+    body: "It's Sunday 9 PM — finish your Sunday Survey.",
+    hour: 21,
+    minute: 0,
+    weekdays: [1] // Sunday
+  },
+  {
+    key: "journal",
+    title: "Weekly journal reminder",
+    body: "Sunday 9 AM — time for your weekly journal entry.",
+    hour: 9,
+    minute: 0,
+    weekdays: [1] // Sunday morning
+  }
+];
 
 const STORAGE_KEYS = {
   STATE: "app_state_v1"
 };
 
-type ClickItem = { ts: number; key: string };
-
 type AppState = {
   lastActiveDate: string | null;
   streak: number;
-  clicks: ClickItem[];
+  history: Record<string, string[]>;
   notificationsEnabled: boolean;
 };
 
 const DEFAULT_STATE: AppState = {
   lastActiveDate: null,
   streak: 0,
-  clicks: [],
+  history: {},
   notificationsEnabled: true
 };
 
@@ -94,7 +121,45 @@ export default function App() {
   const loadState = useCallback(async () => {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.STATE);
-      if (raw) setState(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+
+        const legacyHistory: Record<string, string[]> = (() => {
+          if (parsed.history && typeof parsed.history === "object") {
+            return Object.keys(parsed.history).reduce<Record<string, string[]>>((acc, key) => {
+              const value = parsed.history[key];
+              if (Array.isArray(value)) {
+                const clean = value.filter((d: unknown) => typeof d === "string");
+                if (clean.length > 0) acc[key] = Array.from(new Set(clean));
+              }
+              return acc;
+            }, {});
+          }
+          if (Array.isArray(parsed.clicks)) {
+            const acc: Record<string, string[]> = {};
+            parsed.clicks.forEach((item: any) => {
+              if (!item || typeof item !== "object") return;
+              const key = item.key;
+              const ts = item.ts;
+              if (typeof key !== "string" || typeof ts !== "number") return;
+              const date = toYMD(new Date(ts));
+              if (!acc[key]) acc[key] = [];
+              if (!acc[key].includes(date)) acc[key].push(date);
+            });
+            return acc;
+          }
+          return {};
+        })();
+
+        const next: AppState = {
+          ...DEFAULT_STATE,
+          ...parsed,
+          history: legacyHistory,
+          notificationsEnabled: parsed.notificationsEnabled ?? DEFAULT_STATE.notificationsEnabled
+        };
+
+        setState(next);
+      }
     } catch {}
     setLoading(false);
   }, []);
@@ -124,16 +189,28 @@ export default function App() {
         return;
       }
       await Notifications.cancelAllScheduledNotificationsAsync();
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Daily check-in",
-          body: "Complete your Daily Survey or Journal Entry to keep your streak alive."
-        },
-        trigger: { hour: REMINDER_HOUR, minute: REMINDER_MINUTE, repeats: true }
-      });
+
+      await Promise.all(
+        REMINDERS.flatMap((reminder) =>
+          reminder.weekdays.map((weekday) =>
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: reminder.title,
+                body: reminder.body
+              },
+              trigger: {
+                hour: reminder.hour,
+                minute: reminder.minute,
+                weekday,
+                repeats: true
+              }
+            })
+          )
+        )
+      );
     };
     ensureScheduled();
-  }, [state.notificationsEnabled, loading, saveState, state]);
+  }, [state.notificationsEnabled, loading, saveState]);
 
   // Streak color + milestone confetti
   const streakColor = useMemo(() => {
@@ -159,7 +236,7 @@ export default function App() {
     let nextLastActive = state.lastActiveDate;
 
     if (state.lastActiveDate === today) {
-      // already counted
+      // already counted today
     } else if (state.lastActiveDate == null) {
       nextStreak = 1;
       nextLastActive = today;
@@ -176,11 +253,20 @@ export default function App() {
       }
     }
 
+    const existingDates = state.history[item.key] || [];
+    const alreadyLoggedToday = existingDates.includes(today);
+    const nextHistory = alreadyLoggedToday
+      ? state.history
+      : {
+          ...state.history,
+          [item.key]: [...existingDates, today]
+        };
+
     const next: AppState = {
       ...state,
       streak: nextStreak,
-      lastActiveDate: nextLastActive!,
-      clicks: [...state.clicks, { ts: Date.now(), key: item.key }]
+      lastActiveDate: nextLastActive ?? today,
+      history: nextHistory
     };
     setState(next);
     await saveState(next);
@@ -237,58 +323,102 @@ export default function App() {
   const ScreenReminders = () => (
     <SafeAreaView style={styles.safe}>
       <Header />
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>Daily reminder</Text>
+          <Text style={styles.rowLabel}>Reminders</Text>
           <Switch value={state.notificationsEnabled} onValueChange={toggleNotifications} />
         </View>
         <Text style={styles.smallNote}>
-          Reminder at {String(REMINDER_HOUR).padStart(2, "0")}:{String(REMINDER_MINUTE).padStart(2, "0")} daily. (Local time)
+          Turn on to receive the following schedule (times shown in your local timezone):
         </Text>
+        <View style={styles.reminderList}>
+          {REMINDERS.map((reminder) => (
+            <View key={reminder.key} style={styles.reminderItem}>
+              <Text style={styles.reminderTitle}>{reminder.title}</Text>
+              <Text style={styles.reminderBody}>{reminder.body}</Text>
+            </View>
+          ))}
+        </View>
         {Platform.OS === "android" && (
           <Text style={[styles.smallNote, { marginTop: 8 }]}>
             On Android 13+, enable notifications for this app in system settings if prompted.
           </Text>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
+
+  const totalUniqueDays = useMemo(() => {
+    const set = new Set<string>();
+    Object.values(state.history).forEach((dates) => {
+      dates.forEach((d) => set.add(d));
+    });
+    return set.size;
+  }, [state.history]);
 
   const ScreenProgress = () => (
     <SafeAreaView style={styles.safe}>
       <Header />
-      <View style={styles.container}>
-        <Pressable onPress={playEffectsDemo} style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}>
-          <Text style={styles.demoText}>Play Effects Demo</Text>
-        </Pressable>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.sectionTitle}>Check-in summary</Text>
+        {LINKS.map((link) => {
+          const dates = state.history[link.key] || [];
+          const last = dates[dates.length - 1];
+          return (
+            <View key={link.key} style={styles.statCard}>
+              <Text style={styles.statTitle}>{link.label}</Text>
+              <Text style={styles.statValue}>{dates.length} unique day{dates.length === 1 ? "" : "s"}</Text>
+              {last && <Text style={styles.smallNote}>Last completion: {last}</Text>}
+            </View>
+          );
+        })}
+
+        <View style={styles.statCard}>
+          <Text style={styles.statTitle}>Total unique check-in days</Text>
+          <Text style={styles.statValue}>{totalUniqueDays}</Text>
+          {state.lastActiveDate && (
+            <Text style={styles.smallNote}>Most recent day: {state.lastActiveDate}</Text>
+          )}
+        </View>
 
         <Pressable onPress={resetProgress} style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}>
           <Text style={styles.resetText}>Reset Progress</Text>
         </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
 
+  const ScreenBadges = () => (
+    <SafeAreaView style={styles.safe}>
+      <Header />
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.sectionTitle}>Streak badges</Text>
         {MILESTONES.map((m) => (
           <View key={m} style={styles.milestoneRow}>
             <View style={[styles.badge, state.streak >= m ? styles.badgeActive : styles.badgeInactive]}>
               <Text style={styles.badgeText}>{m}</Text>
             </View>
             <Text style={styles.milestoneText}>
-              {state.streak >= m ? "Unlocked!" : "Locked"} — milestone {m}
+              {state.streak >= m ? "Unlocked!" : "Locked"} — {m}-day streak
             </Text>
           </View>
         ))}
-      </View>
 
-      {/* Confetti for milestones & demo (pure JS) */}
+        <Pressable onPress={playEffectsDemo} style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}>
+          <Text style={styles.demoText}>Celebrate with Confetti</Text>
+        </Pressable>
+      </ScrollView>
+
       {confettiTrigger > 0 && (
         <ConfettiCannon
-          key={confettiTrigger}     // remount to fire each time
+          key={confettiTrigger}
           autoStart
           count={120}
           fadeOut
           origin={{ x: 0, y: 0 }}
           fallSpeed={2500}
           explosionSpeed={400}
-          onAnimationEnd={() => { /* no-op; component unmounts on next trigger */ }}
+          onAnimationEnd={() => {}}
         />
       )}
     </SafeAreaView>
@@ -316,17 +446,31 @@ export default function App() {
           tabBarActiveTintColor: "#60a5fa",
           tabBarInactiveTintColor: "#94a3b8",
           tabBarIcon: ({ color, size }) => {
-            const name =
-              route.name === "Check-ins" ? "link" :
-              route.name === "Reminders" ? "notifications-outline" :
-              "trophy-outline";
-            return <Ionicons name={name as any} size={size} color={color} />;
+            let iconName: keyof typeof Ionicons.glyphMap = "ellipse-outline";
+            switch (route.name) {
+              case "Check-ins":
+                iconName = "link";
+                break;
+              case "Reminders":
+                iconName = "notifications-outline";
+                break;
+              case "Progress":
+                iconName = "stats-chart-outline";
+                break;
+              case "Badges":
+                iconName = "trophy-outline";
+                break;
+              default:
+                iconName = "ellipse-outline";
+            }
+            return <Ionicons name={iconName} size={size} color={color} />;
           }
         })}
       >
         <Tab.Screen name="Check-ins" component={ScreenCheckins} />
         <Tab.Screen name="Reminders" component={ScreenReminders} />
         <Tab.Screen name="Progress" component={ScreenProgress} />
+        <Tab.Screen name="Badges" component={ScreenBadges} />
       </Tab.Navigator>
     </NavigationContainer>
   );
@@ -357,6 +501,28 @@ const styles = StyleSheet.create({
   row: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   rowLabel: { color: "white", fontSize: 16 },
   smallNote: { color: "#94a3b8", fontSize: 12, marginTop: 4 },
+
+  reminderList: { marginTop: 12, gap: 12 },
+  reminderItem: {
+    backgroundColor: "#111827",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#1f2937"
+  },
+  reminderTitle: { color: "white", fontWeight: "600", marginBottom: 4 },
+  reminderBody: { color: "#cbd5f5", fontSize: 13 },
+
+  sectionTitle: { color: "#cbd5f5", fontSize: 16, fontWeight: "700" },
+  statCard: {
+    backgroundColor: "#111827",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#1f2937"
+  },
+  statTitle: { color: "white", fontWeight: "600", marginBottom: 6 },
+  statValue: { color: "#60a5fa", fontSize: 18, fontWeight: "700" },
 
   demoBtn: {
     marginTop: 6,

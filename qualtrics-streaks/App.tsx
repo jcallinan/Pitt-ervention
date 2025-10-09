@@ -122,7 +122,7 @@ const PARTY_ART: Record<PartyArtName, ImageSourcePropType> = {
   banner: require("./assets/party/banner.png"),
   balloon: require("./assets/party/balloon.png"),
   cake: require("./assets/party/cake.png"),
-  gift: require("./assets/party/gift.png")
+  gift: require("./assets/party/present.png")
 };
 
 const CHECKIN_ART: Record<string, PartyArtName> = {

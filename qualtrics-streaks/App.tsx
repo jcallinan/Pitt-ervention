@@ -9,7 +9,9 @@ import {
   Alert,
   Switch,
   Image,
-  ScrollView
+  ScrollView,
+  ImageSourcePropType,
+  ImageStyle
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Notifications from "expo-notifications";
@@ -112,6 +114,55 @@ const dateDiffInDays = (from: string, to: string) => {
 
 // ---- App Root ----
 const Tab = createBottomTabNavigator();
+
+type PartyArtName = "bee" | "banner" | "balloon" | "cake" | "gift";
+
+const PARTY_ART: Record<PartyArtName, ImageSourcePropType> = {
+  bee: require("./assets/party/bee.png"),
+  banner: require("./assets/party/banner.png"),
+  balloon: require("./assets/party/balloon.png"),
+  cake: require("./assets/party/cake.png"),
+  gift: require("./assets/party/gift.png")
+};
+
+const CHECKIN_ART: Record<string, PartyArtName> = {
+  daily: "bee",
+  sunday: "balloon",
+  journal: "gift"
+};
+
+const PROGRESS_ART: Record<string, PartyArtName> = {
+  daily: "bee",
+  sunday: "balloon",
+  journal: "gift"
+};
+
+const MILESTONE_ART: Record<number, PartyArtName> = {
+  10: "bee",
+  25: "balloon",
+  50: "cake",
+  100: "gift"
+};
+
+const PartyArt = ({
+  name,
+  size = 64,
+  accessibilityLabel,
+  style
+}: {
+  name: PartyArtName;
+  size?: number;
+  accessibilityLabel: string;
+  style?: ImageStyle;
+}) => (
+  <Image
+    source={PARTY_ART[name]}
+    style={[styles.partyArt, style, { width: size, height: size }]}
+    resizeMode="contain"
+    accessible
+    accessibilityLabel={accessibilityLabel}
+  />
+);
 
 export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
@@ -296,7 +347,7 @@ export default function App() {
   // Header (logo + streak pill)
   const Header = () => (
     <View style={styles.header}>
-      <Image source={require("./assets/logo.png")} style={styles.logo} />
+      <PartyArt name="bee" size={108} accessibilityLabel="Bee party icon" style={styles.headerArt} />
       <Text style={styles.title}>UPB Wellness Check-ins</Text>
       <View style={[styles.streakPill, { backgroundColor: streakColor }]}>
         <Text style={styles.streakText}>🔥 Streak: {state.streak} day{state.streak === 1 ? "" : "s"}</Text>
@@ -310,10 +361,30 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <Header />
       <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.heroNote}>
+          <PartyArt
+            name="banner"
+            size={132}
+            accessibilityLabel="Festive celebration banner"
+            style={styles.heroBanner}
+          />
+          <Text style={styles.heroHeadline}>Let's keep the buzz going!</Text>
+          <Text style={styles.heroCopy}>Tap a check-in below to stay on your streak.</Text>
+        </View>
         {LINKS.map((l) => (
           <Pressable key={l.key} onPress={() => openLink(l)} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-            <Text style={styles.cardTitle}>{l.label}</Text>
-            <Text style={styles.cardUrl} numberOfLines={1}>{l.url}</Text>
+            <View style={styles.cardContent}>
+              <PartyArt
+                name={CHECKIN_ART[l.key] ?? "bee"}
+                size={56}
+                accessibilityLabel={`${l.label} celebration icon`}
+                style={styles.cardIcon}
+              />
+              <View style={styles.cardTextGroup}>
+                <Text style={styles.cardTitle}>{l.label}</Text>
+                <Text style={styles.cardUrl} numberOfLines={1}>{l.url}</Text>
+              </View>
+            </View>
           </Pressable>
         ))}
       </ScrollView>
@@ -366,19 +437,39 @@ export default function App() {
           const last = dates[dates.length - 1];
           return (
             <View key={link.key} style={styles.statCard}>
-              <Text style={styles.statTitle}>{link.label}</Text>
-              <Text style={styles.statValue}>{dates.length} unique day{dates.length === 1 ? "" : "s"}</Text>
-              {last && <Text style={styles.smallNote}>Last completion: {last}</Text>}
+              <View style={styles.statRow}>
+                <PartyArt
+                  name={PROGRESS_ART[link.key] ?? "bee"}
+                  size={56}
+                  accessibilityLabel={`${link.label} progress icon`}
+                  style={styles.statIcon}
+                />
+                <View style={styles.statCopy}>
+                  <Text style={styles.statTitle}>{link.label}</Text>
+                  <Text style={styles.statValue}>{dates.length} unique day{dates.length === 1 ? "" : "s"}</Text>
+                  {last && <Text style={styles.smallNote}>Last completion: {last}</Text>}
+                </View>
+              </View>
             </View>
           );
         })}
 
         <View style={styles.statCard}>
-          <Text style={styles.statTitle}>Total unique check-in days</Text>
-          <Text style={styles.statValue}>{totalUniqueDays}</Text>
-          {state.lastActiveDate && (
-            <Text style={styles.smallNote}>Most recent day: {state.lastActiveDate}</Text>
-          )}
+          <View style={styles.statRow}>
+            <PartyArt
+              name="cake"
+              size={56}
+              accessibilityLabel="Celebratory cake icon"
+              style={styles.statIcon}
+            />
+            <View style={styles.statCopy}>
+              <Text style={styles.statTitle}>Total unique check-in days</Text>
+              <Text style={styles.statValue}>{totalUniqueDays}</Text>
+              {state.lastActiveDate && (
+                <Text style={styles.smallNote}>Most recent day: {state.lastActiveDate}</Text>
+              )}
+            </View>
+          </View>
         </View>
 
         <Pressable onPress={resetProgress} style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}>
@@ -395,6 +486,12 @@ export default function App() {
         <Text style={styles.sectionTitle}>Streak badges</Text>
         {MILESTONES.map((m) => (
           <View key={m} style={styles.milestoneRow}>
+            <PartyArt
+              name={MILESTONE_ART[m] ?? "gift"}
+              size={48}
+              accessibilityLabel={`${m}-day streak celebration icon`}
+              style={styles.milestoneArt}
+            />
             <View style={[styles.badge, state.streak >= m ? styles.badgeActive : styles.badgeInactive]}>
               <Text style={styles.badgeText}>{m}</Text>
             </View>
@@ -403,7 +500,6 @@ export default function App() {
             </Text>
           </View>
         ))}
-
         <Pressable onPress={playEffectsDemo} style={({ pressed }) => [styles.demoBtn, pressed && styles.demoBtnPressed]}>
           <Text style={styles.demoText}>Celebrate with Confetti</Text>
         </Pressable>
@@ -480,13 +576,26 @@ export default function App() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0b1220" },
   header: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 8, alignItems: "center" },
-  logo: { width: 108, height: 108, marginBottom: 8, borderRadius: 24 },
+  headerArt: { marginBottom: 12 },
+  partyArt: { shadowColor: "#000", shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 12, elevation: 6 },
   title: { fontSize: 22, fontWeight: "700", color: "white", marginBottom: 8, textAlign: "center" },
   streakPill: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999 },
   streakText: { color: "white", fontWeight: "700" },
   muted: { color: "#94a3b8", marginTop: 6 },
 
   container: { padding: 16, gap: 12 },
+  heroNote: {
+    backgroundColor: "#111827",
+    borderColor: "#1f2937",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    alignItems: "center"
+  },
+  heroBanner: { marginBottom: 4 },
+  heroHeadline: { color: "#facc15", fontSize: 18, fontWeight: "700" },
+  heroCopy: { color: "#e2e8f0", fontSize: 13 },
   card: {
     backgroundColor: "#111827",
     borderRadius: 14,
@@ -494,6 +603,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1f2937"
   },
+  cardContent: { flexDirection: "row", alignItems: "center", gap: 14 },
+  cardIcon: { marginRight: 2 },
+  cardTextGroup: { flex: 1 },
   cardPressed: { opacity: 0.85 },
   cardTitle: { color: "white", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   cardUrl: { color: "#60a5fa", fontSize: 13 },
@@ -521,6 +633,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1f2937"
   },
+  statRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  statIcon: { marginRight: 2 },
+  statCopy: { flex: 1 },
   statTitle: { color: "white", fontWeight: "600", marginBottom: 6 },
   statValue: { color: "#60a5fa", fontSize: 18, fontWeight: "700" },
 
@@ -546,7 +661,8 @@ const styles = StyleSheet.create({
   resetBtnPressed: { opacity: 0.9 },
   resetText: { color: "white", fontWeight: "700" },
 
-  milestoneRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 },
+  milestoneRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 12 },
+  milestoneArt: { marginRight: 2 },
   badge: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: "center", justifyContent: "center"

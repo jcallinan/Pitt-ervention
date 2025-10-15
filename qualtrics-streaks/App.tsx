@@ -11,7 +11,10 @@ import {
   Image,
   ScrollView,
   ImageSourcePropType,
-  ImageStyle
+  ImageStyle,
+  TextInput,
+  KeyboardAvoidingView,
+  ActivityIndicator
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Notifications from "expo-notifications";
@@ -20,6 +23,7 @@ import ConfettiCannon from "react-native-confetti-cannon"; // ⬅️ pure-JS con
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { sha256 } from "./src/utils/sha256";
 
 // ---- Config ----
 const LINKS = [
@@ -68,7 +72,13 @@ const REMINDERS = [
 ];
 
 const STORAGE_KEYS = {
-  STATE: "app_state_v1"
+  STATE: "app_state_v1",
+  AUTH: "auth_status_v1"
+};
+
+const EXPECTED_CREDENTIAL_HASHES = {
+  username: "534a63e83ef1b95a4b622ffbf1b598f7b357ac24b844e960ce134cab9d24b6d1",
+  password: "1df377b394ccfd62b475d79b575243a4abb393b8d431f9721c6e911896a7510c"
 };
 
 type AppState = {
@@ -164,10 +174,102 @@ const PartyArt = ({
   />
 );
 
+const LoginScreen = ({
+  onSubmit
+}: {
+  onSubmit: (username: string, password: string) => Promise<boolean>;
+}) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const success = await onSubmit(username, password);
+      if (!success) {
+        setError("Invalid username or password.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }, [onSubmit, password, submitting, username]);
+
+  return (
+    <SafeAreaView style={styles.loginSafe}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.loginWrapper}
+      >
+        <View style={styles.loginCard}>
+          <Text style={styles.loginTitle}>Welcome</Text>
+          <Text style={styles.loginSubtitle}>Sign in to continue.</Text>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Username"
+            placeholderTextColor="#6b7280"
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.loginInput}
+            returnKeyType="next"
+            textContentType="username"
+            editable={!submitting}
+          />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#6b7280"
+            secureTextEntry
+            style={styles.loginInput}
+            returnKeyType="done"
+            textContentType="password"
+            onSubmitEditing={handleSubmit}
+            editable={!submitting}
+          />
+          {error && <Text style={styles.loginError}>{error}</Text>}
+          <Pressable
+            onPress={handleSubmit}
+            disabled={submitting}
+            style={({ pressed }) => [
+              styles.loginButton,
+              (pressed || submitting) && styles.loginButtonPressed,
+              submitting && styles.loginButtonDisabled
+            ]}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Log in</Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
 export default function App() {
   const [state, setState] = useState<AppState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
   const [confettiTrigger, setConfettiTrigger] = useState<number>(0);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEYS.AUTH);
+        setIsAuthenticated(stored === "true");
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   const loadState = useCallback(async () => {
     try {
@@ -225,7 +327,7 @@ export default function App() {
 
   // Schedule / cancel notifications when toggled
   useEffect(() => {
-    if (loading) return;
+    if (loading || !isAuthenticated) return;
     const ensureScheduled = async () => {
       if (!state.notificationsEnabled) {
         await Notifications.cancelAllScheduledNotificationsAsync();
@@ -261,7 +363,7 @@ export default function App() {
       );
     };
     ensureScheduled();
-  }, [state.notificationsEnabled, loading, saveState]);
+  }, [state.notificationsEnabled, loading, saveState, isAuthenticated]);
 
   // Streak color + milestone confetti
   const streakColor = useMemo(() => {
@@ -343,6 +445,28 @@ export default function App() {
   }, [saveState]);
 
   const playEffectsDemo = useCallback(() => setConfettiTrigger(Date.now()), []);
+
+  const handleLogin = useCallback(
+    async (inputUsername: string, inputPassword: string) => {
+      const usernameHash = sha256(inputUsername.trim());
+      const passwordHash = sha256(inputPassword);
+      const success =
+        usernameHash === EXPECTED_CREDENTIAL_HASHES.username &&
+        passwordHash === EXPECTED_CREDENTIAL_HASHES.password;
+
+      if (success) {
+        setIsAuthenticated(true);
+        try {
+          await AsyncStorage.setItem(STORAGE_KEYS.AUTH, "true");
+        } catch {}
+      } else {
+        setIsAuthenticated(false);
+      }
+
+      return success;
+    },
+    []
+  );
 
   // Header (logo + streak pill)
   const Header = () => (
@@ -525,13 +649,25 @@ export default function App() {
     colors: { ...DefaultTheme.colors, background: "#0b1220", card: "#0b1220", text: "#fff", border: "#1f2937" }
   };
 
+  if (isAuthenticated === null) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]}>
+        <Text style={styles.muted}>Loading…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen onSubmit={handleLogin} />;
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, styles.center]}>
         <Text style={styles.muted}>Loading…</Text>
       </SafeAreaView>
     );
-    }
+  }
 
   return (
     <NavigationContainer theme={navTheme}>
@@ -575,6 +711,38 @@ export default function App() {
 // ---- Styles ----
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0b1220" },
+  loginSafe: { flex: 1, backgroundColor: "#0b1220" },
+  loginWrapper: { flex: 1, justifyContent: "center", padding: 24 },
+  loginCard: {
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+    gap: 16
+  },
+  loginTitle: { color: "white", fontSize: 22, fontWeight: "700" },
+  loginSubtitle: { color: "#cbd5f5", fontSize: 14 },
+  loginInput: {
+    backgroundColor: "#0f172a",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "white"
+  },
+  loginError: { color: "#f87171", fontSize: 13 },
+  loginButton: {
+    marginTop: 8,
+    backgroundColor: "#2563eb",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center"
+  },
+  loginButtonPressed: { opacity: 0.85 },
+  loginButtonDisabled: { backgroundColor: "#1d4ed8" },
+  loginButtonText: { color: "white", fontWeight: "700", fontSize: 16 },
   header: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 8, alignItems: "center" },
   headerArt: { marginBottom: 12 },
   partyArt: { shadowColor: "#000", shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 12, elevation: 6 },
